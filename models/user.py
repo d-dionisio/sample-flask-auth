@@ -7,4 +7,4 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(80), nullable=False, unique=True)
     password = db.Column(db.String(80), nullable=False)
 
-# No terminal digitar os seguintos comandos flask shell >> db.create_all(), db.session, db.session.commit()
+# No terminal digitar os seguintes comandos flask shell >> db.create_all(), db.session, db.session.commit()
