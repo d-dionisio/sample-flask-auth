@@ -2,10 +2,12 @@ from flask import Flask, request, jsonify
 from database import db
 from models.user import User
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+import bcrypt
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "your_secret_key"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:admin123@127.0.0.1:3306/flask-crud'
 
 login_manager = LoginManager()
 # Responsável por iniciar minha conexão com o banco de dados
@@ -29,7 +31,7 @@ def login():
         # Login
         user = User.query.filter_by(username=username).first()
 
-        if user and user.password == password:
+        if user and bcrypt.checkpw(str.encode(password), str.encode(user.password)):
             login_user(user)
             print(current_user.is_authenticated)
             return jsonify({"message": "Autenticação realizada com sucesso!"})
@@ -50,7 +52,8 @@ def create_user():
     password = data.get("password")
 
     if username and password:
-        user = User(username=username, password=password)
+        hashed_password = bcrypt.hashpw(str.encode(password), bcrypt.gensalt())
+        user = User(username=username, password=hashed_password, role='user')
         db.session.add(user)
         db.session.commit()
         return jsonify({"message": "Usuário cadastrado com sucesso"})
@@ -73,6 +76,9 @@ def update_user(user_id):
     data = request.json
     user = User.query.get(user_id)
 
+    if user_id != current_user.user_id and current_user.role == 'user':
+        return jsonify({"message": "Operação não permitida."}), 403
+
     if user and data.get("password"):
         user.password = data["password"]
         db.session.commit()
@@ -86,6 +92,9 @@ def update_user(user_id):
 def delete_user(user_id):
     user = User.query.get(user_id)
 
+    if current_user.role != "admin":
+        return jsonify({"message": "Operação não permitida!"}), 403
+
     if user_id == current_user.id:
         return  jsonify({"message": "Deleção não permitida"}), 403
 
@@ -96,12 +105,6 @@ def delete_user(user_id):
         return jsonify({"message": f"Usuário {user_id} deletado com sucesso!"})
     
     return jsonify({"Usuário não encontrado!"}), 404
-
-
-
-@app.route("/hello-world", methods=["GET"])
-def hello_world():
-    return "Hello World!"
 
 if __name__ == "__main__":
     app.run(debug=True)
